@@ -68,7 +68,7 @@ int value = 1337;
 void func(int& x);
 // ...
 int a = 45;
-func(a); // valid, binding to an lvalue, "a"
+func(a); // valid, binding to an lvalue, a
 
 func(34); // invalid, attempting to bind rvalue to non-const
           // reference
