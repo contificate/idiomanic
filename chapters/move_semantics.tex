@@ -1,0 +1,149 @@
+
+\chapter{Move Semantics}
+
+\textit{Move Semantics} refers to the \textit{moving} of - typically
+resource-owning - reference types in C++. At its essence, movement refers to the
+shallow copying and nullification of resource members from a class. 
+
+\paragraph{Brief History}
+In C++, it's quite often the case that we construct local objects and then
+immediately pass and then assign them elsewhere. Before C++11, this would
+prove to be an expensive way to write code due to overhead incurred during these
+operations. Namely, the construction of a \textit{temporary} object that only
+exists to be copied elsewhere leads to redundant overhead.
+
+\section{Understanding Ownership}
+	\paragraph{What is ownership?}
+
+\section{\texttt{rvalue} reference syntax}
+
+	C++11 introduced rvalue reference syntax, denoted by a type followed by two
+	ampersands: \texttt{Type\&\&}. To understand why this syntax had to be
+	introduced, one must recall fundamental rules governing a design decision
+	made in the language a long time ago. This decision, briefly, was the
+	decision to allow rvalues to bind to \texttt{const} references. 
+
+	The concept of an rvalue is rather simple (ignoring more naunced value
+	categories). The name \textit{rvalue} is derived from early terminology used
+	by compiler developers to distinguish between each side of an assignment
+	expression. A simple example of this can be seen below:
+
+	% assignment example
+	\begin{minted}[linenos, frame=single]{cpp}
+int value = 1337;
+	\end{minted}
+
+	In this example, \texttt{value} is the \textit{lvalue} (left-hand side) and
+	\texttt{1337} is the \texttt{rvalue} (right-hand side). The most high-level
+	distinguishing feature of these value categories is simple: you can get the
+	address of an lvalue, you can't get the address of an rvalue.\par
+
+	We could get the address of \texttt{value} by dereferencing it, e.g.
+	\texttt{\&value}. However, we cannot get the address of ``\texttt{1337}'' as
+	it's an integer literal expression. We can consider the temporary nature of
+	rvalues as temporary until \textit{bound}; where \textit{bound} refers to a
+	temporary whose value has been bound to an identifier. We use rvalue
+	reference syntax to extend the lifetime of temporaries by binding them to a
+	type that essentially preserves the \textit{rvalueness}. Later on, we'll
+	talk about specific cases of \textit{forwarding}, where we can retain the
+	\textit{rvalueness} of parameterised values.
+	
+	\subsection{Binding rvalues to \texttt{const} references}	
+	 
+	 	As mentioned earlier, in C++ we have the ability to bind rvalues to
+		\texttt{const} references. The rationale for this was likely something
+		relating to safety within immutability. However, we won't linger on the
+		motivations, we'll merely see how this language design decision has
+		impacted the development of C++ since C++11.
+
+		This rule is fundamental to truly understanding the reasoning behind the
+		introduction of rvalue reference syntax. Thus, we'll begin with trivial
+		examples and hopefully build up to less contrived examples.
+
+		At its simplest, the rule can be summarised by the following code
+		snippets:
+
+		% 
+		\begin{minted}[linenos, frame=single]{cpp}
+void func(int& x);
+// ...
+int a = 45;
+func(a); // valid, binding to an lvalue, "a"
+
+func(34); // invalid, attempting to bind rvalue to non-const
+          // reference
+		\end{minted}
+
+		As you can see, we cannot pass an rvalue to a function accepting a
+		non-\texttt{const} reference parameter. However, let's see what happens
+		if we change our function so that it accepts a \texttt{const} reference
+		parameter:
+
+		% 
+		\begin{minted}[linenos, frame=single]{cpp}
+void func(const int& x);
+// ...
+int a = 45;
+func(a); // valid, binding to an lvalue, a
+
+func(34); // valid, binding rvalue to const reference
+		\end{minted}
+
+		As you can see, both calls to \texttt{func} are allowed because we can
+		bind both lvalues \textit{and} rvalues to \texttt{const} references. The
+		above example may seem rather contrived but we can apply it to other
+		scenarios where a \texttt{const} reference parameter is seen accepting
+		rvalues. To do this, we must recall that rvalues can be yielded from
+		other places. For example, \textit{conversion construction} yields an
+		rvalue: 
+
+		Let's define a trivial class that we can construct via conversion
+		construction:
+		
+		\begin{minted}[linesnos, frame=single, tabsize=2]{cpp}
+class Object {
+public:
+	Object(int x) : x_{x} { }
+
+private:
+	int x_;
+};
+		\end{minted}
+
+		Since our constructor for \texttt{Object} isn't declared
+		\texttt{explicit}, we can implicitly rely on conversion construction to
+		construct an instance of \texttt{Object} when an \texttt{int} is
+		supplied as an argument to a function accepting a \texttt{const}
+		reference to \texttt{Object}:
+
+		\begin{minted}[linesnos, frame=single, tabsize=2]{cpp}
+void func(const Object& x);
+
+func(45); // valid, conversion construction from int yields
+          // an rvalue that can bind to the const reference
+		\end{minted}
+
+		A less contrived example of relying on \textit{conversion construction}
+		for binding to \texttt{const} references can be seen in the rather
+		common example of passing \texttt{std::string} by \texttt{const}
+		reference.
+
+		
+		\begin{minted}[linesnos, frame=single, tabsize=2]{cpp}
+void func(const std::string& x);
+
+func("foo"); // valid 
+		\end{minted}
+
+		In the above example using \texttt{std::string}, the string literal
+		\texttt{"foo"} (i.e. \texttt{const char*}) is conversion constructed
+		using a constructor provided by the class that \texttt{std::string} is a
+		type definition (or alias declaration) of. E.g. \texttt{std::string} is
+		a specialisation of \texttt{std::basic\_string<charT>} where
+		\texttt{charT} = \texttt{char}. \texttt{std::basic\_string} provides a
+		constructor that accepts \texttt{const charT*}.
+
+		It's very important to note that we can also bind rvalues to parameters
+		that are \textit{by-value}. This can be problematic when we attempt to
+		introduce overloads for both \texttt{by-value} and by \texttt{const}
+		reference parameters.
