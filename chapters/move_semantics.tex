@@ -99,8 +99,9 @@ func(34); // valid, binding rvalue to const reference
 
 		Let's define a trivial class that we can construct via conversion
 		construction:
-		
-		\begin{minted}[linesnos, frame=single, tabsize=2]{cpp}
+	
+		% definition of conversion-constructible class	
+		\begin{minted}[linenos, frame=single, tabsize=2]{cpp}
 class Object {
 public:
 	Object(int x) : x_{x} { }
@@ -116,6 +117,7 @@ private:
 		supplied as an argument to a function accepting a \texttt{const}
 		reference to \texttt{Object}:
 
+		% passing our conversion-constructible class by const reference
 		\begin{minted}[linesnos, frame=single, tabsize=2]{cpp}
 void func(const Object& x);
 
@@ -128,8 +130,8 @@ func(45); // valid, conversion construction from int yields
 		common example of passing \texttt{std::string} by \texttt{const}
 		reference.
 
-		
-		\begin{minted}[linesnos, frame=single, tabsize=2]{cpp}
+		% passing std::string by const reference example	
+		\begin{minted}[linenos, frame=single, tabsize=2]{cpp}
 void func(const std::string& x);
 
 func("foo"); // valid 
@@ -140,10 +142,50 @@ func("foo"); // valid
 		using a constructor provided by the class that \texttt{std::string} is a
 		type definition (or alias declaration) of. E.g. \texttt{std::string} is
 		a specialisation of \texttt{std::basic\_string<charT>} where
-		\texttt{charT} = \texttt{char}. \texttt{std::basic\_string} provides a
-		constructor that accepts \texttt{const charT*}.
+		\texttt{charT} = \texttt{char}. The constructor that is resolved in the
+		above example is simply \texttt{std::string(const char*)} i.e.
+		\texttt{std::basic\_string<charT = char>(const charT*)}.
 
 		It's very important to note that we can also bind rvalues to parameters
 		that are \textit{by-value}. This can be problematic when we attempt to
 		introduce overloads for both \texttt{by-value} and by \texttt{const}
-		reference parameters.
+		reference parameters - as we'll see below:
+
+		\begin{minted}[linenos, frame=single, tabsize=2]{cpp}
+void func(int x);
+void func(const int& x);
+
+func(34); // pass in an rvalue
+		\end{minted}
+
+		When compiled with GCC, we get:
+
+\begin{minted}[linenos, frame=single]{text}
+example.cc: In function ‘int main()’:
+example.cc:6:9: error: call of overloaded ‘func(int)’ is ambiguous
+  func(34);
+         ^
+example.cc:2:6: note: candidate: void func(int)
+ void func(int x);
+      ^~~~
+example.cc:3:6: note: candidate: void func(const int&)
+ void func(const int& x);
+      ^~~~
+\end{minted}
+
+		As you can see, the compiler considers our call to \texttt{func} to be
+		\textit{ambiguos}. This is because both versions of \texttt{func} can
+		accept rvalues. Ambiguity is the term assigned to a scenario where
+		\textit{overload resolution} fails to choose between overloaded
+		candidates.
+
+		Given these overload resolution constraints, what must language
+		designers do to work around ambiguity when they're intent on designating
+		a type specifically for rvalues? The answer: they retain
+		backwards-compatibility by introducing a new syntax and assigning it a
+		higher \textit{precedence} for overload resolution to use as a
+		resolution factor.
+
+	\subsection{The Introduction of \texttt{rvalue} reference syntax}
+	\subsection{Universal references}
+		\subsubsection{Perfect forwarding}
