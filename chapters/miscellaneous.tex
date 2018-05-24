@@ -1,0 +1,80 @@
+
+\chapter{Miscellaneous}
+
+	\paragraph{Brief Overview}
+
+	This chapter is mostly for me to write about things I believe constitute
+	good programming style and practice in C++.  
+
+	\section{Restraining objects to a valid state}
+		
+		If you've ever used classes from the STL, you'll know that many of them
+		implement \textit{states} (in the form of state flags, most notably
+		\texttt{std::ios\_base::iostate}) as their way of informing the
+		programmer of their state in order to allow for error-checking logic to
+		be implemented around their usage. This style of programming is often a
+		lot more useful than adopting the cultural norms of, say, a language
+		like Java; where it's often the case that error-checking logic only
+		exists in the form of catching an exception.
+		
+		The state of many of these STL classes can be accessed using explicit
+		\textit{accessors} (essentially, typically, \texttt{const}-correct
+		``\textit{getters}'') in the form of member functions like:
+		\texttt{good()}, \texttt{fail()}, \texttt{bad()}, etc. However, these
+		accessors are also conveniently implemented in the form of operator
+		overloading, which allows for expressive - error-checking - code to be
+		written.
+
+		When paired with C++'s ability to allow for variable declarations within
+		\textit{if} statement conditions, such operator overloads can be useful
+		when invoked from implicit conversion (\textit{contextually
+		convertible}). Let's look at an example:
+
+		% restraining by state example
+		\begin{minted}[linenos, frame=single, tabsize=2]{cpp}
+if (auto ifs = std::ifstream("file.bin", std::ios::binary)) {
+	// use ifs
+}
+		\end{minted}
+
+		This code does more for us than probably meets the eye. The code will
+		construct the instance of \texttt{std::ifstream} for us and then invoke
+		\texttt{explicit operator bool() const;} on it to yield a boolean for
+		the \texttt{if}-statement's condition. We also restrain \texttt{ifs} to
+		its valid state (unless we, of course, corrupt it ourselves). The
+		\texttt{ifs} instance is bound to the \textit{true} block of our
+		conditional structure - meaning RAII will destruct it at the end of that
+		block. This is a safer way to write code because we cannot access
+		\texttt{ifs} outwith a block that's only executed if its state is
+		\textit{valid} (i.e. its \texttt{bool} overload yields \texttt{true}).
+		
+
+	\section{Don't use \texttt{std::endl}}
+
+		A lot of people new to C++ often find themselves writing code like:
+
+		% std::endl example
+		\begin{minted}[linenos, frame=single]{cpp}
+std::cout << "Hello, world" << std::endl;
+		\end{minted}
+
+		without a real understanding of what \texttt{std::endl} actually does.
+		Despite its misleading name, \texttt{std::endl} doesn't only just
+		\textit{end the line}, it also flushes the stream (using
+		\texttt{std::flush}). Such a flush in most trivial text-outputting
+		scenarios is not desired behaviour and so it's recommended that you just
+		use a newline (\texttt{\textbackslash n}) character instead (as shown
+		below).
+
+		\begin{minted}[linenos, frame=single]{cpp}
+std::cout << "Hello, world\n";
+		\end{minted}
+
+		Also, when nesting, keep in mind that \textbackslash n is a single
+		character. Thus, when passing it to a stream, one should wrap it
+		properly within single apostrophes (e.g. instead of \texttt{<<
+		"\textbackslash n";}, one should write \texttt{<< `\textbackslash n';}).
+		This simply looks more natural in terms of code style (despite the fact
+		that compilers will almost definitely optimise out the idea of
+		designating a string literal relocation for a single character in such
+		scenarios). 

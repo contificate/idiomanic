@@ -187,5 +187,49 @@ example.cc:3:6: note: candidate: void func(const int&)
 		resolution factor.
 
 	\subsection{The Introduction of \texttt{rvalue} reference syntax}
+		
+		As noted at the end of the previous section, rvalue references were
+		introduced largely to have a higher precedence for overload resolution
+		when dealing with rvalues (as both by-value and by \texttt{const}
+		reference parameters can already bind to rvalues; which leads to
+		ambiguity when overloaded together).
+
+		You can see the effect of that in the following snippet:
+
+		\begin{minted}[linenos, frame=single, tabsize=2]{cpp}
+// accept const reference
+void func(const int& x) {
+	std::cout << "const ref " << x << '\n';
+}
+
+// accept rvalue reference
+void func(int&& x) {
+	std::cout << "rvalue ref " << x << '\n';
+}
+
+// invoke with lvalue
+int a = 45;
+func(a);
+
+// invoke will rvalue
+func(37);
+		\end{minted}
+
+		The output of this code is simply:
+
+		\begin{minted}[linenos, frame=single]{text}
+const ref 45
+rvalue ref 37
+		\end{minted}
+
+		We can see that, when provided with an lvalue, \texttt{a}, overload
+		resolution opts for the \texttt{const} reference overload of
+		\texttt{func}. When given an rvalue, the integer literal \texttt{37},
+		the overload of \texttt{func} that accepts an rvalue reference is
+		selected. 
+		
+
+	\subsection{Casting to \texttt{rvalues}}
+
 	\subsection{Universal references}
 		\subsubsection{Perfect forwarding}
